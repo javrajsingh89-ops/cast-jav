@@ -5,7 +5,6 @@ let isConnected = false;
 let lastTimestamp = 0;
 let latencyInterval = null;
 
-// CONFIGURAZIONE WEBRTC
 const configuration = {
     iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
@@ -20,7 +19,6 @@ const configuration = {
     sdpSemantics: 'unified-plan'
 };
 
-// DOM Elements
 const codeInput = document.getElementById('code-input');
 const connectBtn = document.getElementById('connect-btn');
 const codeInputContainer = document.getElementById('code-input-container');
@@ -31,20 +29,29 @@ const tvStatusIcon = document.getElementById('tv-status-icon');
 const fullscreenBtn = document.getElementById('fullscreen-btn');
 const latencyBadge = document.getElementById('latency-badge');
 
-// Calcola e mostra la latenza
+// Estrai codice dall'URL se presente
+function getCodeFromURL() {
+    const path = window.location.pathname;
+    const match = path.match(/\/tv\/(\d{4})/);
+    if (match) {
+        return match[1];
+    }
+    return null;
+}
+
 function updateLatency(latencyMs) {
     if (!latencyBadge) return;
     
-    let color = '#10b981'; // verde - buona
-    let text = 'Bassa';
+    let color = '#10b981';
+    let text = 'BASSA';
     
     if (latencyMs > 300) {
-        color = '#f59e0b'; // giallo - media
-        text = 'Media';
+        color = '#f59e0b';
+        text = 'MEDIA';
     }
     if (latencyMs > 800) {
-        color = '#ef4444'; // rosso - alta
-        text = 'Alta';
+        color = '#ef4444';
+        text = 'ALTA';
     }
     
     latencyBadge.style.backgroundColor = color;
@@ -52,19 +59,16 @@ function updateLatency(latencyMs) {
     latencyBadge.classList.add('visible');
 }
 
-// Misura la latenza usando RTCP
 function startLatencyMonitoring(peerConn) {
     if (latencyInterval) clearInterval(latencyInterval);
     
     latencyInterval = setInterval(() => {
         if (!peerConn) return;
         
-        const stats = peerConn.getStats();
-        stats.then(reports => {
+        peerConn.getStats().then(reports => {
             reports.forEach(report => {
                 if (report.type === 'inbound-rtp' && report.kind === 'video') {
                     if (report.jitter !== undefined) {
-                        // Converti jitter in latenza approssimativa
                         const estimatedLatency = report.jitter * 1000;
                         updateLatency(estimatedLatency);
                     }
@@ -91,27 +95,23 @@ function toggleFullscreen() {
             container.requestFullscreen();
         } else if (container.webkitRequestFullscreen) {
             container.webkitRequestFullscreen();
-        } else if (container.msRequestFullscreen) {
-            container.msRequestFullscreen();
         }
-        fullscreenBtn.innerHTML = '⛶ Esci';
+        fullscreenBtn.innerHTML = '⛶ ESC';
     } else {
         if (document.exitFullscreen) {
             document.exitFullscreen();
         } else if (document.webkitExitFullscreen) {
             document.webkitExitFullscreen();
-        } else if (document.msExitFullscreen) {
-            document.msExitFullscreen();
         }
-        fullscreenBtn.innerHTML = '⛶ Fullscreen';
+        fullscreenBtn.innerHTML = '⛶ FULLSCREEN';
     }
 }
 
 function updateFullscreenButton() {
     if (document.fullscreenElement) {
-        fullscreenBtn.innerHTML = '⛶ Esci';
+        fullscreenBtn.innerHTML = '⛶ ESC';
     } else {
-        fullscreenBtn.innerHTML = '⛶ Fullscreen';
+        fullscreenBtn.innerHTML = '⛶ FULLSCREEN';
     }
 }
 
@@ -153,7 +153,6 @@ async function initWebRTCReciever(code) {
             fullscreenBtn.classList.remove('hidden');
             updateTVStatus('streaming', 'Streaming in corso');
             
-            // Avvia monitoraggio latenza
             startLatencyMonitoring(peerConnection);
         }
     };
@@ -209,15 +208,15 @@ function handleDisconnect() {
     isConnected = false;
     currentCode = null;
     updateTVStatus('waiting', 'In attesa codice');
+    
+    // Rimuovi il codice dall'URL ma mantieni la pagina
+    const url = new URL(window.location);
+    if (url.pathname !== '/tv') {
+        window.history.pushState({}, '', '/tv');
+    }
 }
 
-function connectToSession() {
-    const code = codeInput.value.trim();
-    if (!code || code.length !== 4) {
-        alert('Inserisci un codice a 4 cifre valido');
-        return;
-    }
-    
+function connectToSession(code) {
     currentCode = code;
     updateTVStatus('connecting', 'Connessione in corso...');
     
@@ -238,6 +237,9 @@ function setupSocketEvents() {
     
     socket.on('connect', () => {
         console.log('TV Socket connected');
+        if (currentCode) {
+            socket.emit('tv-connect', currentCode);
+        }
     });
     
     socket.on('connection-success', (success) => {
@@ -270,18 +272,44 @@ function setupSocketEvents() {
     });
 }
 
-connectBtn.addEventListener('click', connectToSession);
+// Event listeners
+connectBtn.addEventListener('click', () => {
+    const code = codeInput.value.trim();
+    if (!code || code.length !== 4) {
+        alert('Inserisci un codice a 4 cifre valido');
+        return;
+    }
+    connectToSession(code);
+});
+
 fullscreenBtn.addEventListener('click', toggleFullscreen);
 
 codeInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
-        connectToSession();
+        const code = codeInput.value.trim();
+        if (code && code.length === 4) {
+            connectToSession(code);
+        }
     }
 });
 
+// Animazione quando si digita
 codeInput.addEventListener('input', (e) => {
     e.target.value = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
+    
+    // Effetto visivo sulla cifra inserita
+    e.target.style.transform = 'scale(1.02)';
+    setTimeout(() => {
+        e.target.style.transform = 'scale(1)';
+    }, 100);
 });
+
+// Controlla se c'è un codice nell'URL
+const urlCode = getCodeFromURL();
+if (urlCode) {
+    codeInput.value = urlCode;
+    connectToSession(urlCode);
+}
 
 setupSocketEvents();
 updateTVStatus('waiting', 'In attesa codice');
