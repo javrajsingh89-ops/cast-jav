@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&display=swap');
 
 * {
     margin: 0;
@@ -59,16 +60,45 @@ body {
     padding: 2rem;
 }
 
-/* ===== LOGO ===== */
+/* ===== LOGO ANIMATO ===== */
 .logo {
     text-align: center;
     margin-bottom: 2rem;
 }
 
 .logo-text {
-    font-size: 2.8rem;
-    font-weight: 700;
-    letter-spacing: -0.5px;
+    font-size: 3.5rem;
+    font-weight: 800;
+    letter-spacing: 2px;
+    font-family: 'Orbitron', 'Inter', monospace;
+    background: var(--gradient-white);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: logoGlow 2s ease-in-out infinite, logoPulse 1.5s ease-in-out infinite;
+    display: inline-block;
+    position: relative;
+}
+
+@keyframes logoGlow {
+    0%, 100% {
+        text-shadow: 0 0 5px rgba(255,255,255,0.3);
+    }
+    50% {
+        text-shadow: 0 0 20px rgba(255,255,255,0.6);
+    }
+}
+
+@keyframes logoPulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.02);
+    }
+}
+
+.logo-accent {
     background: var(--gradient-white);
     -webkit-background-clip: text;
     background-clip: text;
@@ -85,7 +115,7 @@ body {
     color: white;
     font-size: 0.7rem;
     padding: 0.2rem 0.6rem;
-    border-radius: 4px;
+    border-radius: 20px;
     margin-left: 0.6rem;
     vertical-align: middle;
     font-weight: 600;
@@ -98,10 +128,15 @@ body {
 
 .status-card {
     background: var(--bg-card);
-    border-radius: 0px;
+    border-radius: 20px;
     padding: 1.5rem;
     text-align: center;
     border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+}
+
+.status-card:hover {
+    border-color: #555;
 }
 
 .status-icon {
@@ -124,13 +159,13 @@ body {
     color: var(--text-secondary);
 }
 
-/* ===== LATENCY BADGE (in alto a sinistra) ===== */
+/* ===== LATENCY BADGE ===== */
 .latency-badge {
     position: fixed;
     top: 1rem;
     left: 1rem;
     padding: 0.4rem 0.8rem;
-    border-radius: 4px;
+    border-radius: 20px;
     font-size: 0.7rem;
     font-weight: 600;
     color: white;
@@ -146,14 +181,28 @@ body {
     display: block;
 }
 
-/* ===== CODE DISPLAY ===== */
+/* ===== CODE DISPLAY (con dissolvenza) ===== */
 .code-container {
     background: var(--bg-card);
-    border-radius: 0px;
+    border-radius: 20px;
     padding: 1.5rem;
     text-align: center;
     margin-bottom: 2rem;
     border: 1px solid #333;
+    animation: fadeInCode 0.5s ease-out;
+}
+
+@keyframes fadeInCode {
+    0% {
+        opacity: 0;
+        transform: translateY(-20px);
+        filter: blur(5px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+        filter: blur(0);
+    }
 }
 
 .code-label {
@@ -181,10 +230,10 @@ body {
     margin-top: 0.5rem;
 }
 
-/* ===== CODE INPUT ===== */
+/* ===== CODE INPUT (con animazione cifre) ===== */
 .code-input-container {
     background: var(--bg-card-solid);
-    border-radius: 0px;
+    border-radius: 20px;
     padding: 1.8rem;
     text-align: center;
     margin-bottom: 2rem;
@@ -198,16 +247,43 @@ body {
     text-align: center;
     background: var(--bg-primary);
     border: 2px solid #444;
-    border-radius: 0px;
+    border-radius: 16px;
     color: white;
     font-family: 'Courier New', monospace;
     font-weight: 700;
     letter-spacing: 0.3rem;
+    transition: all 0.2s ease;
 }
 
 .code-input:focus {
     outline: none;
     border-color: #888;
+    transform: scale(1.02);
+}
+
+/* Animazione quando si digita */
+.code-input:focus {
+    animation: inputPulse 0.3s ease-out;
+}
+
+@keyframes inputPulse {
+    0% {
+        transform: scale(1);
+        border-color: #444;
+    }
+    50% {
+        transform: scale(1.02);
+        border-color: #aaa;
+    }
+    100% {
+        transform: scale(1);
+        border-color: #888;
+    }
+}
+
+/* Animazione per ogni cifra inserita */
+.code-input {
+    transition: all 0.1s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
 
 /* ===== BUTTONS ===== */
@@ -217,11 +293,11 @@ body {
     background: var(--gradient-gray);
     color: white;
     border: none;
-    border-radius: 0px;
+    border-radius: 50px;
     font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
-    transition: opacity 0.2s ease;
+    transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -230,6 +306,7 @@ body {
 
 .btn-primary:hover {
     opacity: 0.8;
+    transform: translateY(-2px);
 }
 
 .btn-large {
@@ -243,11 +320,11 @@ body {
     background: #333;
     color: white;
     border: none;
-    border-radius: 0px;
+    border-radius: 50px;
     font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
-    transition: opacity 0.2s ease;
+    transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -257,9 +334,10 @@ body {
 
 .btn-danger:hover {
     opacity: 0.8;
+    transform: translateY(-2px);
 }
 
-/* ===== CONTROLLI FREEZE/BLACK ETC ===== */
+/* ===== CONTROLLI ===== */
 .controls-container {
     display: flex;
     gap: 0.8rem;
@@ -282,11 +360,12 @@ body {
     justify-content: center;
     gap: 0.4rem;
     font-family: 'Inter', sans-serif;
-    border-radius: 0px;
+    border-radius: 50px;
 }
 
 .btn-control:hover {
     background: #333;
+    transform: translateY(-2px);
 }
 
 .btn-control.active {
@@ -294,7 +373,7 @@ body {
     border-color: #888;
 }
 
-/* ===== FULLSCREEN BUTTON (TV) ===== */
+/* ===== FULLSCREEN BUTTON ===== */
 .btn-fullscreen {
     position: absolute;
     bottom: 1rem;
@@ -302,7 +381,7 @@ body {
     background: rgba(0, 0, 0, 0.8);
     color: white;
     border: 1px solid #555;
-    border-radius: 0px;
+    border-radius: 40px;
     padding: 0.4rem 0.8rem;
     font-size: 0.7rem;
     cursor: pointer;
@@ -312,17 +391,19 @@ body {
     font-weight: 500;
     font-family: monospace;
     z-index: 10;
+    transition: all 0.2s ease;
 }
 
 .btn-fullscreen:hover {
     background: #333;
+    transform: scale(1.05);
 }
 
 /* ===== VIDEO CONTAINER ===== */
 .video-container {
     position: relative;
     background: #000;
-    border-radius: 0px;
+    border-radius: 20px;
     overflow: hidden;
     margin-top: 1rem;
     border: 1px solid var(--border-color);
@@ -341,12 +422,36 @@ body {
     right: 1rem;
     background: rgba(0, 0, 0, 0.8);
     padding: 0.3rem 0.8rem;
-    border-radius: 0px;
+    border-radius: 30px;
     font-size: 0.7rem;
     color: #aaa;
     font-weight: 500;
     letter-spacing: 0.5px;
     font-family: monospace;
+}
+
+/* ===== SHARE BUTTON ===== */
+.share-code-btn {
+    width: 100%;
+    padding: 0.8rem;
+    background: #222;
+    color: white;
+    border: 1px solid #444;
+    border-radius: 50px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.share-code-btn:hover {
+    background: #333;
+    transform: translateY(-2px);
 }
 
 /* ===== INFO TEXT ===== */
@@ -378,7 +483,7 @@ body {
     display: none;
 }
 
-/* ===== ANIMAZIONI SOLO PER PAGINA PRINCIPALE ===== */
+/* ===== ANIMAZIONI ===== */
 @keyframes fadeInUp {
     from {
         opacity: 0;
@@ -387,6 +492,18 @@ body {
     to {
         opacity: 1;
         transform: translateY(0);
+    }
+}
+
+@keyframes fadeOutDown {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-20px);
+        filter: blur(5px);
     }
 }
 
@@ -413,7 +530,7 @@ body {
     }
     
     .logo-text {
-        font-size: 2.2rem;
+        font-size: 2.5rem;
     }
     
     .code-display {
@@ -458,26 +575,18 @@ body {
     }
 }
 
-/* ===== TV SPECIFIC (nessuna animazione) ===== */
+/* TV specific (no animazioni pesanti) */
 .tv-layout {
     padding: 0;
 }
 
 .tv-layout .status-card,
 .tv-layout .code-input-container,
-.tv-layout .video-container,
-.tv-layout .btn-primary,
-.tv-layout .btn-control {
-    animation: none !important;
-    transition: none !important;
+.tv-layout .video-container {
+    animation: none;
 }
 
-.tv-layout * {
-    animation: none !important;
-    transition: none !important;
-}
-
-/* ===== EFFECTS ===== */
+/* Effects */
 .effect-blur {
     filter: blur(8px);
 }
@@ -486,18 +595,9 @@ body {
     filter: brightness(0);
 }
 
-/* Ottimizzazioni per playback fluido */
+/* Ottimizzazioni performance */
 .stream-video {
     will-change: transform;
     transform: translateZ(0);
     backface-visibility: hidden;
-}
-
-.video-container {
-    will-change: transform;
-}
-
-/* Miglioramento performance */
-.controls-container {
-    will-change: contents;
 }
