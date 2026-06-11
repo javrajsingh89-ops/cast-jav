@@ -7,6 +7,9 @@
     <link rel="stylesheet" href="/style.css">
 </head>
 <body class="dark-theme tv-layout">
+    <!-- Badge latenza in alto a sinistra -->
+    <div id="latency-badge" class="latency-badge">--ms</div>
+
     <div class="container tv-container">
         <div class="logo tv-logo">
             <span class="logo-text">Cast<span class="logo-accent">Jav</span></span>
@@ -21,25 +24,25 @@
         </div>
 
         <div id="code-input-container" class="code-input-container">
-            <div class="code-label">Inserisci il codice a 4 cifre</div>
+            <div class="code-label">CODICE A 4 CIFRE</div>
             <div class="code-input-wrapper">
                 <input type="text" id="code-input" class="code-input" maxlength="4" pattern="\d*" inputmode="numeric" placeholder="0000">
             </div>
-            <button id="connect-btn" class="btn-primary">Connetti</button>
+            <button id="connect-btn" class="btn-primary">CONNETTI</button>
         </div>
 
         <div id="video-container" class="video-container hidden">
             <video id="remote-video" autoplay playsinline class="stream-video"></video>
             <div class="stream-overlay">
-                <div class="stream-quality">Streaming fluido</div>
+                STREAMING HD
             </div>
             <button id="fullscreen-btn" class="btn-fullscreen hidden">
-                ⛶ Schermo intero
+                ⛶ FULLSCREEN
             </button>
         </div>
 
         <div class="info-text tv-info">
-            <span>🖥️ Streaming ottimizzato a bassa latenza</span>
+            <span>STREAMING OTTIMIZZATO A BASSA LATENZA</span>
         </div>
     </div>
 
