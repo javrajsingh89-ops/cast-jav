@@ -4,7 +4,6 @@ let peerConnection;
 let currentCode = null;
 let currentStatus = 'waiting';
 
-// Variabili per gli effetti
 let isFrozen = false;
 let originalTrack = null;
 let isBlackActive = false;
@@ -12,7 +11,6 @@ let isBlurActive = false;
 let blurCanvas = null;
 let blurAnimationId = null;
 
-// CONFIGURAZIONE WEBRTC OTTIMIZZATA
 const configuration = {
     iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
@@ -27,11 +25,11 @@ const configuration = {
     sdpSemantics: 'unified-plan'
 };
 
-// DOM Elements
 const shareBtn = document.getElementById('share-btn');
 const endBtn = document.getElementById('end-btn');
 const codeContainer = document.getElementById('code-container');
 const codeDisplay = document.getElementById('code-display');
+const shareCodeBtn = document.getElementById('share-code-btn');
 const statusText = document.getElementById('status-text');
 const statusIcon = document.getElementById('status-icon');
 const statusSubtle = document.getElementById('status-subtle');
@@ -73,7 +71,31 @@ function updateStatus(status, extra = {}) {
     }
 }
 
-// ===== FUNZIONI PER GLI EFFETTI =====
+// Condividi codice con link diretto
+function shareCodeLink() {
+    if (!currentCode) return;
+    
+    const link = `${window.location.origin}/tv/${currentCode}`;
+    
+    if (navigator.share) {
+        navigator.share({
+            title: 'Cast Jav - Codice TV',
+            text: `Usa questo link per vedere il mio schermo: ${currentCode}`,
+            url: link
+        }).catch(err => console.log('Share cancelled:', err));
+    } else {
+        navigator.clipboard.writeText(link).then(() => {
+            const originalText = shareCodeBtn.textContent;
+            shareCodeBtn.textContent = '✅ LINK COPIATO!';
+            setTimeout(() => {
+                shareCodeBtn.textContent = originalText;
+            }, 2000);
+        }).catch(() => {
+            alert('Link: ' + link);
+        });
+    }
+}
+
 function applyFreeze() {
     if (!peerConnection) return;
     
@@ -81,16 +103,13 @@ function applyFreeze() {
     if (!sender) return;
     
     if (!isFrozen) {
-        // Salva il track originale
         originalTrack = sender.track;
         
-        // Crea un canvas per catturare il frame corrente
         const canvas = document.createElement('canvas');
         canvas.width = 640;
         canvas.height = 480;
         const ctx = canvas.getContext('2d');
         
-        // Crea un elemento video temporaneo
         const tempVideo = document.createElement('video');
         tempVideo.srcObject = new MediaStream([originalTrack]);
         tempVideo.muted = true;
@@ -111,7 +130,6 @@ function applyFreeze() {
             tempVideo.srcObject = null;
         });
     } else {
-        // Scongela - ripristina il track live
         if (originalTrack && originalTrack.readyState === 'live') {
             sender.replaceTrack(originalTrack);
         }
@@ -127,12 +145,10 @@ function applyBlack() {
     if (!sender) return;
     
     if (!isBlackActive) {
-        // Salva il track originale se non è già salvato
         if (!isFrozen && !originalTrack) {
             originalTrack = sender.track;
         }
         
-        // Crea stream nero
         const canvas = document.createElement('canvas');
         canvas.width = 640;
         canvas.height = 480;
@@ -157,18 +173,15 @@ function applyBlur() {
     if (!sender) return;
     
     if (!isBlurActive) {
-        // Salva il track originale
         if (!isFrozen && !originalTrack) {
             originalTrack = sender.track;
         }
         
-        // Crea canvas per il blur
         blurCanvas = document.createElement('canvas');
         blurCanvas.width = 640;
         blurCanvas.height = 480;
         const ctx = blurCanvas.getContext('2d');
         
-        // Crea video temporaneo per catturare lo stream
         const tempVideo = document.createElement('video');
         const sourceStream = new MediaStream([originalTrack || sender.track]);
         tempVideo.srcObject = sourceStream;
@@ -204,13 +217,11 @@ function resetEffects() {
     const sender = peerConnection.getSenders().find(s => s.track?.kind === 'video');
     if (!sender) return;
     
-    // Ferma animazione blur
     if (blurAnimationId) {
         cancelAnimationFrame(blurAnimationId);
         blurAnimationId = null;
     }
     
-    // Ripristina track originale
     if (originalTrack && originalTrack.readyState === 'live') {
         sender.replaceTrack(originalTrack);
     }
@@ -224,15 +235,12 @@ function resetEffects() {
     blurBtn.classList.remove('active');
 }
 
-// ===== WEBRTC OTTIMIZZATO =====
 async function initWebRTC(code) {
     peerConnection = new RTCPeerConnection(configuration);
     
-    // Imposta le preferenze di banda
     if (localStream) {
         localStream.getTracks().forEach(track => {
             peerConnection.addTrack(track, localStream);
-            // Salva il track originale
             if (track.kind === 'video') {
                 originalTrack = track;
             }
@@ -245,17 +253,12 @@ async function initWebRTC(code) {
         }
     };
     
-    peerConnection.oniceconnectionstatechange = () => {
-        console.log('ICE connection state:', peerConnection.iceConnectionState);
-    };
-    
     peerConnection.onconnectionstatechange = () => {
         console.log('Connection state:', peerConnection.connectionState);
         if (peerConnection.connectionState === 'connected') {
             updateStatus('streaming');
             controlsContainer.classList.remove('hidden');
         } else if (peerConnection.connectionState === 'failed') {
-            console.error('Connection failed');
             endTransmission();
         }
     };
@@ -280,7 +283,6 @@ function handleICECandidate(data) {
 }
 
 function endTransmission() {
-    // Ferma animazione blur
     if (blurAnimationId) {
         cancelAnimationFrame(blurAnimationId);
         blurAnimationId = null;
@@ -307,7 +309,6 @@ function endTransmission() {
     endBtn.classList.add('hidden');
     updateStatus('waiting');
     
-    // Reset variabili
     isFrozen = false;
     isBlackActive = false;
     isBlurActive = false;
@@ -317,12 +318,10 @@ function endTransmission() {
     blurBtn.classList.remove('active');
 }
 
-// SCREEN SHARE CON SCELTA SCHERMATA
 async function startScreenShare() {
     try {
         updateStatus('connecting');
         
-        // Chiede all'utente cosa condividere
         localStream = await navigator.mediaDevices.getDisplayMedia({
             video: {
                 cursor: "always",
@@ -332,10 +331,9 @@ async function startScreenShare() {
                 frameRate: { ideal: 25, max: 30 }
             },
             audio: false,
-            preferCurrentTab: false  // Permette di scegliere tra finestre/tab/intero schermo
+            preferCurrentTab: false
         });
         
-        // Ottimizza la traccia video
         const videoTrack = localStream.getVideoTracks()[0];
         if (videoTrack) {
             await videoTrack.applyConstraints({
@@ -343,12 +341,9 @@ async function startScreenShare() {
                 height: { ideal: 720, max: 1080 },
                 frameRate: { ideal: 25, max: 30 }
             });
-            console.log('Track settings:', videoTrack.getSettings());
         }
         
-        // Quando l'utente ferma la condivisione dal browser
         localStream.getVideoTracks()[0].onended = () => {
-            console.log('Screen sharing stopped by user');
             endTransmission();
         };
         
@@ -398,19 +393,17 @@ function setupSocketEvents() {
     socket.on('ice-candidate', handleICECandidate);
     
     socket.on('cast-ended', () => {
-        console.log('Cast ended by TV');
         endTransmission();
     });
     
     socket.on('peer-disconnected', () => {
-        console.log('TV disconnected');
         endTransmission();
     });
 }
 
-// Event listeners
 shareBtn.addEventListener('click', startScreenShare);
 endBtn.addEventListener('click', endTransmission);
+shareCodeBtn.addEventListener('click', shareCodeLink);
 freezeBtn.addEventListener('click', applyFreeze);
 blackBtn.addEventListener('click', applyBlack);
 blurBtn.addEventListener('click', applyBlur);
