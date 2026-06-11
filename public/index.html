@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cast Jav - Trasmetti Schermo</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body class="dark-theme">
+    <div class="container">
+        <div class="logo">
+            <span class="logo-text">Cast<span class="logo-accent">Jav</span></span>
+        </div>
+
+        <div id="status-container" class="status-container">
+            <div class="status-card">
+                <div class="status-icon" id="status-icon">⏳</div>
+                <div class="status-text" id="status-text">In attesa</div>
+                <div class="status-subtle" id="status-subtle">Pronto per iniziare</div>
+            </div>
+        </div>
+
+        <div id="code-container" class="code-container hidden">
+            <div class="code-label">Codice di connessione</div>
+            <div class="code-display" id="code-display">----</div>
+            <div class="code-hint">Inserisci questo codice sulla TV</div>
+        </div>
+
+        <button id="share-btn" class="btn-primary btn-large">
+            <span class="btn-icon">📱</span>
+            Condividi Schermo
+        </button>
+
+        <button id="end-btn" class="btn-danger hidden">
+            <span class="btn-icon">⏹️</span>
+            Termina Cast
+        </button>
+
+        <div class="info-text">
+            <span>🔒 Streaming sicuro e privato</span>
+            <span>⚡ Bassa latenza</span>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/client.js"></script>
+</body>
+</html>

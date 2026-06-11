@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cast Jav - Ricevi Schermo</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body class="dark-theme tv-layout">
+    <div class="container tv-container">
+        <div class="logo tv-logo">
+            <span class="logo-text">Cast<span class="logo-accent">Jav</span></span>
+            <span class="tv-badge">TV</span>
+        </div>
+
+        <div id="tv-status" class="status-container">
+            <div class="status-card">
+                <div class="status-icon" id="tv-status-icon">📺</div>
+                <div class="status-text" id="tv-status-text">In attesa codice</div>
+            </div>
+        </div>
+
+        <div id="code-input-container" class="code-input-container">
+            <div class="code-label">Inserisci il codice a 4 cifre</div>
+            <div class="code-input-wrapper">
+                <input type="text" id="code-input" class="code-input" maxlength="4" pattern="\d*" inputmode="numeric" placeholder="0000">
+            </div>
+            <button id="connect-btn" class="btn-primary">Connetti</button>
+        </div>
+
+        <div id="video-container" class="video-container hidden">
+            <video id="remote-video" autoplay playsinline class="stream-video"></video>
+            <div class="stream-overlay">
+                <div class="stream-quality">Streaming in corso</div>
+            </div>
+            <button id="fullscreen-btn" class="btn-fullscreen hidden">
+                <span class="btn-icon">⛶</span>
+                Schermo intero
+            </button>
+        </div>
+
+        <div class="info-text tv-info">
+            <span>🖥️ Visualizza lo schermo del tuo smartphone</span>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/tv-client.js"></script>
+</body>
+</html>

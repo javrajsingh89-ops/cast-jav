@@ -1,0 +1,16 @@
+{
+  "name": "cast-jav",
+  "version": "1.0.0",
+  "description": "Trasmetti lo schermo dello smartphone alla TV via browser",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.5.4"
+  },
+  "keywords": ["webrtc", "screen-cast", "smart-tv"],
+  "author": "",
+  "license": "MIT"
+}
