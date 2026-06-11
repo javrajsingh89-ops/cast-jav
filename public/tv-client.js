@@ -3,11 +3,29 @@ let peerConnection;
 let currentCode = null;
 let isConnected = false;
 
+// CONFIGURAZIONE WEBRTC OTTIMIZZATA PER RICEZIONE
 const configuration = {
     iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
-    ]
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun3.l.google.com:19302' },
+        { urls: 'stun:stun4.l.google.com:19302' },
+        {
+            urls: 'turn:openrelay.metered.ca:80',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+        },
+        {
+            urls: 'turn:openrelay.metered.ca:443',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+        }
+    ],
+    iceCandidatePoolSize: 10,
+    bundlePolicy: 'max-bundle',
+    rtcpMuxPolicy: 'require',
+    sdpSemantics: 'unified-plan'
 };
 
 const codeInput = document.getElementById('code-input');
@@ -29,7 +47,7 @@ function toggleFullscreen() {
         } else if (container.msRequestFullscreen) {
             container.msRequestFullscreen();
         }
-        fullscreenBtn.innerHTML = '<span class="btn-icon">⛶</span> Esci fullscreen';
+        fullscreenBtn.innerHTML = '⛶ Esci fullscreen';
     } else {
         if (document.exitFullscreen) {
             document.exitFullscreen();
@@ -38,15 +56,15 @@ function toggleFullscreen() {
         } else if (document.msExitFullscreen) {
             document.msExitFullscreen();
         }
-        fullscreenBtn.innerHTML = '<span class="btn-icon">⛶</span> Schermo intero';
+        fullscreenBtn.innerHTML = '⛶ Schermo intero';
     }
 }
 
 function updateFullscreenButton() {
     if (document.fullscreenElement) {
-        fullscreenBtn.innerHTML = '<span class="btn-icon">⛶</span> Esci fullscreen';
+        fullscreenBtn.innerHTML = '⛶ Esci fullscreen';
     } else {
-        fullscreenBtn.innerHTML = '<span class="btn-icon">⛶</span> Schermo intero';
+        fullscreenBtn.innerHTML = '⛶ Schermo intero';
     }
 }
 
@@ -75,17 +93,26 @@ function updateTVStatus(status, message) {
     }
 }
 
+// WEBRTC RICEVENTE OTTIMIZZATO
 async function initWebRTCReciever(code) {
     peerConnection = new RTCPeerConnection(configuration);
     
+    // Configura solo ricezione video
+    peerConnection.addTransceiver('video', { direction: 'recvonly' });
+    
     peerConnection.ontrack = (event) => {
-        console.log('Received remote track');
+        console.log('Received remote track', event.track.kind);
         if (event.streams && event.streams[0]) {
             remoteVideo.srcObject = event.streams[0];
+            
+            // Ottimizza la riproduzione
+            remoteVideo.play().catch(e => console.log('Play error:', e));
+            remoteVideo.setAttribute('playsinline', '');
+            
             videoContainer.classList.remove('hidden');
             codeInputContainer.classList.add('hidden');
             fullscreenBtn.classList.remove('hidden');
-            updateTVStatus('streaming', 'Streaming in corso');
+            updateTVStatus('streaming', 'Streaming fluido in corso');
         }
     };
     
@@ -95,10 +122,14 @@ async function initWebRTCReciever(code) {
         }
     };
     
+    peerConnection.oniceconnectionstatechange = () => {
+        console.log('ICE state:', peerConnection.iceConnectionState);
+    };
+    
     peerConnection.onconnectionstatechange = () => {
         console.log('TV Connection state:', peerConnection.connectionState);
         if (peerConnection.connectionState === 'connected') {
-            updateTVStatus('streaming', 'Streaming in corso');
+            updateTVStatus('streaming', 'Streaming fluido in corso');
         } else if (peerConnection.connectionState === 'failed') {
             handleDisconnect();
         }
