@@ -7,27 +7,30 @@
 }
 
 :root {
-    --bg-primary: #0f0f13;
-    --bg-secondary: #1a1a24;
-    --bg-card: rgba(26, 26, 36, 0.9);
-    --bg-card-solid: #1e1e2a;
+    --bg-primary: #0a0a0a;
+    --bg-secondary: #111111;
+    --bg-card: #141414;
+    --bg-card-solid: #1a1a1a;
     --text-primary: #ffffff;
-    --text-secondary: #a0a0b0;
-    --accent-primary: #6366f1;
-    --accent-primary-dark: #4f46e5;
-    --accent-secondary: #06b6d4;
-    --freeze: #3b82f6;
-    --black: #1e293b;
-    --blur: #8b5cf6;
-    --reset: #64748b;
-    --danger: #ef4444;
-    --success: #10b981;
-    --border-color: #2d2d3a;
+    --text-secondary: #888888;
+    --gradient-white: linear-gradient(135deg, #ffffff 0%, #cccccc 100%);
+    --gradient-gray: linear-gradient(135deg, #666666 0%, #333333 100%);
+    --gradient-dark: linear-gradient(135deg, #222222 0%, #111111 100%);
+    --freeze: #444444;
+    --black: #222222;
+    --blur: #555555;
+    --reset: #333333;
+    --danger: #666666;
+    --success: #aaaaaa;
+    --border-color: #2a2a2a;
+    --latency-green: #10b981;
+    --latency-yellow: #f59e0b;
+    --latency-red: #ef4444;
 }
 
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+    background: var(--bg-primary);
     color: var(--text-primary);
     min-height: 100vh;
     display: flex;
@@ -37,7 +40,7 @@ body {
 }
 
 .dark-theme {
-    background: linear-gradient(135deg, #0f0f13 0%, #1a1a24 100%);
+    background: var(--bg-primary);
 }
 
 .container {
@@ -48,10 +51,12 @@ body {
 
 .tv-container {
     max-width: 100%;
-    height: 100vh;
+    min-height: 100vh;
     display: flex;
     flex-direction: column;
     justify-content: center;
+    position: relative;
+    padding: 2rem;
 }
 
 /* ===== LOGO ===== */
@@ -64,23 +69,23 @@ body {
     font-size: 2.8rem;
     font-weight: 700;
     letter-spacing: -0.5px;
-    background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+    background: var(--gradient-white);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
 }
 
 .tv-logo {
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem;
 }
 
 .tv-badge {
     display: inline-block;
-    background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+    background: var(--gradient-gray);
     color: white;
     font-size: 0.7rem;
     padding: 0.2rem 0.6rem;
-    border-radius: 20px;
+    border-radius: 4px;
     margin-left: 0.6rem;
     vertical-align: middle;
     font-weight: 600;
@@ -93,12 +98,10 @@ body {
 
 .status-card {
     background: var(--bg-card);
-    backdrop-filter: blur(10px);
-    border-radius: 24px;
+    border-radius: 0px;
     padding: 1.5rem;
     text-align: center;
-    border: 1px solid rgba(99, 102, 241, 0.2);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border-color);
 }
 
 .status-icon {
@@ -110,7 +113,7 @@ body {
     font-size: 1.3rem;
     font-weight: 600;
     margin-bottom: 0.5rem;
-    background: linear-gradient(135deg, #fff, var(--accent-secondary));
+    background: var(--gradient-white);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -121,16 +124,36 @@ body {
     color: var(--text-secondary);
 }
 
+/* ===== LATENCY BADGE (in alto a sinistra) ===== */
+.latency-badge {
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: white;
+    background-color: var(--latency-green);
+    z-index: 100;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 0.5px;
+    display: none;
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+.latency-badge.visible {
+    display: block;
+}
+
 /* ===== CODE DISPLAY ===== */
 .code-container {
     background: var(--bg-card);
-    backdrop-filter: blur(10px);
-    border-radius: 24px;
+    border-radius: 0px;
     padding: 1.5rem;
     text-align: center;
     margin-bottom: 2rem;
-    border: 1px solid var(--accent-primary);
-    box-shadow: 0 0 15px rgba(99, 102, 241, 0.2);
+    border: 1px solid #333;
 }
 
 .code-label {
@@ -145,7 +168,10 @@ body {
     font-size: 4rem;
     font-weight: 700;
     letter-spacing: 0.3rem;
-    color: var(--accent-primary);
+    background: var(--gradient-white);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
     font-family: 'Courier New', monospace;
 }
 
@@ -158,7 +184,7 @@ body {
 /* ===== CODE INPUT ===== */
 .code-input-container {
     background: var(--bg-card-solid);
-    border-radius: 24px;
+    border-radius: 0px;
     padding: 1.8rem;
     text-align: center;
     margin-bottom: 2rem;
@@ -171,9 +197,9 @@ body {
     width: 220px;
     text-align: center;
     background: var(--bg-primary);
-    border: 2px solid var(--accent-primary);
-    border-radius: 16px;
-    color: var(--accent-primary);
+    border: 2px solid #444;
+    border-radius: 0px;
+    color: white;
     font-family: 'Courier New', monospace;
     font-weight: 700;
     letter-spacing: 0.3rem;
@@ -181,22 +207,21 @@ body {
 
 .code-input:focus {
     outline: none;
-    border-color: var(--accent-secondary);
-    box-shadow: 0 0 15px rgba(6, 182, 212, 0.3);
+    border-color: #888;
 }
 
 /* ===== BUTTONS ===== */
 .btn-primary {
     width: 100%;
     padding: 1rem;
-    background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary-dark) 100%);
+    background: var(--gradient-gray);
     color: white;
     border: none;
-    border-radius: 50px;
+    border-radius: 0px;
     font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: opacity 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -204,8 +229,7 @@ body {
 }
 
 .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 25px rgba(99, 102, 241, 0.3);
+    opacity: 0.8;
 }
 
 .btn-large {
@@ -216,14 +240,14 @@ body {
 .btn-danger {
     width: 100%;
     padding: 1rem;
-    background: linear-gradient(135deg, var(--danger) 0%, #dc2626 100%);
+    background: #333;
     color: white;
     border: none;
-    border-radius: 50px;
+    border-radius: 0px;
     font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: opacity 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -232,8 +256,7 @@ body {
 }
 
 .btn-danger:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 25px rgba(239, 68, 68, 0.3);
+    opacity: 0.8;
 }
 
 /* ===== CONTROLLI FREEZE/BLACK ETC ===== */
@@ -247,9 +270,10 @@ body {
 .btn-control {
     flex: 1;
     padding: 0.8rem;
-    border: none;
-    border-radius: 50px;
-    font-size: 0.9rem;
+    border: 1px solid #444;
+    background: #1a1a1a;
+    color: white;
+    font-size: 0.85rem;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -258,51 +282,16 @@ body {
     justify-content: center;
     gap: 0.4rem;
     font-family: 'Inter', sans-serif;
+    border-radius: 0px;
 }
 
-.btn-freeze {
-    background: var(--freeze);
-    color: white;
+.btn-control:hover {
+    background: #333;
 }
 
-.btn-freeze:hover {
-    background: #2563eb;
-    transform: translateY(-2px);
-}
-
-.btn-black {
-    background: var(--black);
-    color: white;
-}
-
-.btn-black:hover {
-    background: #0f172a;
-    transform: translateY(-2px);
-}
-
-.btn-blur {
-    background: var(--blur);
-    color: white;
-}
-
-.btn-blur:hover {
-    background: #7c3aed;
-    transform: translateY(-2px);
-}
-
-.btn-reset {
-    background: var(--reset);
-    color: white;
-}
-
-.btn-reset:hover {
-    background: #475569;
-    transform: translateY(-2px);
-}
-
-.btn-control-active {
-    box-shadow: 0 0 0 2px white, 0 0 0 4px currentColor;
-    transform: scale(0.98);
+.btn-control.active {
+    background: #444;
+    border-color: #888;
 }
 
 /* ===== FULLSCREEN BUTTON (TV) ===== */
@@ -310,31 +299,30 @@ body {
     position: absolute;
     bottom: 1rem;
     left: 1rem;
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(8px);
-    color: var(--accent-primary);
-    border: 1px solid var(--accent-primary);
-    border-radius: 40px;
-    padding: 0.5rem 1rem;
-    font-size: 0.8rem;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    border: 1px solid #555;
+    border-radius: 0px;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.7rem;
     cursor: pointer;
     display: flex;
     align-items: center;
     gap: 0.5rem;
     font-weight: 500;
-    transition: all 0.2s ease;
+    font-family: monospace;
+    z-index: 10;
 }
 
 .btn-fullscreen:hover {
-    background: var(--accent-primary);
-    color: white;
+    background: #333;
 }
 
 /* ===== VIDEO CONTAINER ===== */
 .video-container {
     position: relative;
     background: #000;
-    border-radius: 20px;
+    border-radius: 0px;
     overflow: hidden;
     margin-top: 1rem;
     border: 1px solid var(--border-color);
@@ -345,25 +333,20 @@ body {
     height: auto;
     background: #000;
     display: block;
-    transition: all 0.2s ease;
-}
-
-.stream-video.frozen {
-    filter: none !important;
 }
 
 .stream-overlay {
     position: absolute;
     bottom: 1rem;
     right: 1rem;
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(8px);
+    background: rgba(0, 0, 0, 0.8);
     padding: 0.3rem 0.8rem;
-    border-radius: 30px;
+    border-radius: 0px;
     font-size: 0.7rem;
-    color: var(--success);
+    color: #aaa;
     font-weight: 500;
     letter-spacing: 0.5px;
+    font-family: monospace;
 }
 
 /* ===== INFO TEXT ===== */
@@ -375,14 +358,15 @@ body {
     font-size: 0.7rem;
     color: var(--text-secondary);
     flex-wrap: wrap;
+    font-family: monospace;
 }
 
 .info-text span {
-    transition: color 0.2s ease;
+    transition: opacity 0.2s ease;
 }
 
 .info-text span:hover {
-    color: var(--accent-primary);
+    opacity: 0.7;
 }
 
 .tv-info {
@@ -412,15 +396,15 @@ body {
 .container:not(.tv-container) .controls-container,
 .container:not(.tv-container) .btn-primary,
 .container:not(.tv-container) .info-text {
-    animation: fadeInUp 0.4s ease forwards;
+    animation: fadeInUp 0.3s ease forwards;
 }
 
 .container:not(.tv-container) .logo { animation-delay: 0s; }
-.container:not(.tv-container) .status-container { animation-delay: 0.1s; }
-.container:not(.tv-container) .code-container { animation-delay: 0.15s; }
-.container:not(.tv-container) .controls-container { animation-delay: 0.2s; }
-.container:not(.tv-container) .btn-primary { animation-delay: 0.25s; }
-.container:not(.tv-container) .info-text { animation-delay: 0.35s; }
+.container:not(.tv-container) .status-container { animation-delay: 0.05s; }
+.container:not(.tv-container) .code-container { animation-delay: 0.1s; }
+.container:not(.tv-container) .controls-container { animation-delay: 0.15s; }
+.container:not(.tv-container) .btn-primary { animation-delay: 0.2s; }
+.container:not(.tv-container) .info-text { animation-delay: 0.25s; }
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
@@ -438,7 +422,7 @@ body {
     }
     
     .code-input {
-        font-size: 2.2rem;
+        font-size: 2rem;
         width: 180px;
     }
     
@@ -447,8 +431,15 @@ body {
     }
     
     .btn-control {
-        padding: 0.6rem;
-        font-size: 0.75rem;
+        padding: 0.5rem;
+        font-size: 0.7rem;
+    }
+    
+    .latency-badge {
+        top: 0.5rem;
+        left: 0.5rem;
+        padding: 0.2rem 0.5rem;
+        font-size: 0.6rem;
     }
 }
 
@@ -474,8 +465,16 @@ body {
 
 .tv-layout .status-card,
 .tv-layout .code-input-container,
-.tv-layout .video-container {
-    animation: none;
+.tv-layout .video-container,
+.tv-layout .btn-primary,
+.tv-layout .btn-control {
+    animation: none !important;
+    transition: none !important;
+}
+
+.tv-layout * {
+    animation: none !important;
+    transition: none !important;
 }
 
 /* ===== EFFECTS ===== */
@@ -498,13 +497,7 @@ body {
     will-change: transform;
 }
 
-/* Miglioramento performance WebRTC */
+/* Miglioramento performance */
 .controls-container {
     will-change: contents;
-}
-
-/* Riduci animazioni per performance (solo TV) */
-.tv-layout * {
-    animation: none !important;
-    transition: none !important;
 }
