@@ -9,11 +9,30 @@ let isFrozen = false;
 let frozenFrame = null;
 let canvas = null;
 
+// CONFIGURAZIONE WEBRTC OTTIMIZZATA PER BASSA LATENZA
 const configuration = {
     iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
-    ]
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun3.l.google.com:19302' },
+        { urls: 'stun:stun4.l.google.com:19302' },
+        // TURN server gratuito per migliorare la connettività
+        {
+            urls: 'turn:openrelay.metered.ca:80',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+        },
+        {
+            urls: 'turn:openrelay.metered.ca:443',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+        }
+    ],
+    iceCandidatePoolSize: 10,      // Più candidati = connessione più veloce
+    bundlePolicy: 'max-bundle',    // Riduce il numero di connessioni
+    rtcpMuxPolicy: 'require',      // Multiplexing RTCP
+    sdpSemantics: 'unified-plan'   // Standard moderno
 };
 
 // DOM Elements
@@ -52,7 +71,7 @@ function updateStatus(status, extra = {}) {
         case 'streaming':
             statusText.textContent = 'Trasmissione in corso';
             statusIcon.textContent = '📡';
-            statusSubtle.textContent = 'Streaming attivo - Usa i controlli sotto';
+            statusSubtle.textContent = 'Streaming fluido a 720p - Usa i controlli';
             break;
         case 'ended':
             statusText.textContent = 'Trasmissione terminata';
@@ -67,14 +86,11 @@ function applyFreeze() {
     if (!localStream) return;
     
     if (!isFrozen) {
-        // Congela l'ultimo frame
         const videoTrack = localStream.getVideoTracks()[0];
         if (videoTrack && !canvas) {
-            // Crea un canvas per catturare il frame
             canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
             
-            // Crea un elemento video temporaneo per catturare il frame
             const tempVideo = document.createElement('video');
             tempVideo.srcObject = localStream;
             tempVideo.play();
@@ -84,7 +100,6 @@ function applyFreeze() {
                 canvas.height = tempVideo.videoHeight;
                 ctx.drawImage(tempVideo, 0, 0, canvas.width, canvas.height);
                 
-                // Sostituisci la traccia video con il frame congelato
                 const frozenStream = canvas.captureStream(1);
                 const newVideoTrack = frozenStream.getVideoTracks()[0];
                 
@@ -100,7 +115,6 @@ function applyFreeze() {
             });
         }
     } else {
-        // Scongela - ripristina il video live
         const sender = peerConnection?.getSenders().find(s => s.track?.kind === 'video');
         if (sender && localStream) {
             const liveTrack = localStream.getVideoTracks()[0];
@@ -114,7 +128,6 @@ function applyFreeze() {
 function applyBlack() {
     if (!localStream) return;
     
-    // Crea un canvas nero
     const blackCanvas = document.createElement('canvas');
     blackCanvas.width = 640;
     blackCanvas.height = 480;
@@ -130,7 +143,6 @@ function applyBlack() {
         sender.replaceTrack(blackTrack);
     }
     
-    // Memorizza che siamo in modalità black
     blackBtn.classList.add('btn-control-active');
     blurBtn.classList.remove('btn-control-active');
     resetEffectBtn.classList.remove('btn-control-active');
@@ -139,13 +151,10 @@ function applyBlack() {
 function applyBlur() {
     if (!localStream) return;
     
-    // Aggiungi filtro blur al video locale
-    // Nota: per un blur perfetto serve WebGL, ma facciamo un filtro CSS sul video
     const videoElement = document.createElement('video');
     videoElement.srcObject = localStream;
     videoElement.style.filter = 'blur(10px)';
     
-    // Cattura il video con blur
     const blurCanvas = document.createElement('canvas');
     blurCanvas.width = 640;
     blurCanvas.height = 480;
@@ -189,10 +198,36 @@ function resetEffects() {
     blurBtn.classList.remove('btn-control-active');
 }
 
-// ===== WEBRTC =====
+// ===== WEBRTC OTTIMIZZATO =====
 async function initWebRTC(code) {
     peerConnection = new RTCPeerConnection(configuration);
     
+    // Imposta le preferenze di banda con Simulcast (3 livelli di qualità)
+    const transceiver = peerConnection.addTransceiver('video', {
+        direction: 'sendonly',
+        sendEncodings: [
+            {
+                rid: 'high',
+                maxBitrate: 2500000,    // 2.5 Mbps - qualità alta
+                scaleResolutionDownBy: 1.0,
+                active: true
+            },
+            {
+                rid: 'medium',
+                maxBitrate: 1200000,    // 1.2 Mbps - qualità media
+                scaleResolutionDownBy: 2.0,
+                active: true
+            },
+            {
+                rid: 'low',
+                maxBitrate: 500000,     // 0.5 Mbps - qualità bassa
+                scaleResolutionDownBy: 4.0,
+                active: true
+            }
+        ]
+    });
+    
+    // Aggiungi la traccia video
     if (localStream) {
         localStream.getTracks().forEach(track => {
             peerConnection.addTrack(track, localStream);
@@ -202,6 +237,13 @@ async function initWebRTC(code) {
     peerConnection.onicecandidate = (event) => {
         if (event.candidate) {
             socket.emit('ice-candidate', { code, candidate: event.candidate });
+        }
+    };
+    
+    peerConnection.oniceconnectionstatechange = () => {
+        console.log('ICE connection state:', peerConnection.iceConnectionState);
+        if (peerConnection.iceConnectionState === 'connected') {
+            console.log('ICE connection established');
         }
     };
     
@@ -216,7 +258,13 @@ async function initWebRTC(code) {
         }
     };
     
-    const offer = await peerConnection.createOffer();
+    const offerOptions = {
+        offerToReceiveAudio: false,
+        offerToReceiveVideo: false,
+        iceRestart: false
+    };
+    
+    const offer = await peerConnection.createOffer(offerOptions);
     await peerConnection.setLocalDescription(offer);
     socket.emit('webrtc-offer', { code, offer });
 }
@@ -257,25 +305,43 @@ function endTransmission() {
     endBtn.classList.add('hidden');
     updateStatus('waiting');
     
-    // Resetta effetti
     isFrozen = false;
     freezeBtn.classList.remove('btn-control-active');
     blackBtn.classList.remove('btn-control-active');
     blurBtn.classList.remove('btn-control-active');
 }
 
+// SCREEN SHARE CON OTTIMIZZAZIONI
 async function startScreenShare() {
     try {
         updateStatus('connecting');
         
+        // Configurazione ottimizzata per lo screen sharing
         localStream = await navigator.mediaDevices.getDisplayMedia({
             video: {
                 cursor: "always",
-                displaySurface: "monitor"
+                displaySurface: "monitor",
+                width: { ideal: 1280, max: 1920 },
+                height: { ideal: 720, max: 1080 },
+                frameRate: { ideal: 25, max: 30 }  // Limita a 25-30fps per stabilità
             },
             audio: false,
-            preferCurrentTab: false
+            preferCurrentTab: true
         });
+        
+        // Ottimizza la traccia video con le migliori impostazioni disponibili
+        const videoTrack = localStream.getVideoTracks()[0];
+        if (videoTrack) {
+            const capabilities = videoTrack.getCapabilities();
+            if (capabilities.width) {
+                await videoTrack.applyConstraints({
+                    width: { ideal: 1280, max: 1920 },
+                    height: { ideal: 720, max: 1080 },
+                    frameRate: { ideal: 25, max: 30 }
+                });
+            }
+            console.log('Track settings:', videoTrack.getSettings());
+        }
         
         localStream.getVideoTracks()[0].onended = () => {
             console.log('Screen sharing stopped by user');
@@ -291,7 +357,7 @@ async function startScreenShare() {
     } catch (err) {
         console.error('Error sharing screen:', err);
         updateStatus('waiting');
-        alert('Impossibile condividere lo schermo. Assicurati di utilizzare un browser compatibile (Chrome, Edge, Safari).');
+        alert('Impossibile condividere lo schermo. Assicurati di utilizzare un browser compatibile.');
     }
 }
 
