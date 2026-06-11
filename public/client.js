@@ -6,33 +6,25 @@ let currentStatus = 'waiting';
 
 // Variabili per gli effetti
 let isFrozen = false;
-let frozenFrame = null;
-let canvas = null;
+let originalTrack = null;
+let isBlackActive = false;
+let isBlurActive = false;
+let blurCanvas = null;
+let blurAnimationId = null;
 
-// CONFIGURAZIONE WEBRTC OTTIMIZZATA PER BASSA LATENZA
+// CONFIGURAZIONE WEBRTC OTTIMIZZATA
 const configuration = {
     iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
         { urls: 'stun:stun2.l.google.com:19302' },
-        { urls: 'stun:stun3.l.google.com:19302' },
-        { urls: 'stun:stun4.l.google.com:19302' },
-        // TURN server gratuito per migliorare la connettività
-        {
-            urls: 'turn:openrelay.metered.ca:80',
-            username: 'openrelayproject',
-            credential: 'openrelayproject'
-        },
-        {
-            urls: 'turn:openrelay.metered.ca:443',
-            username: 'openrelayproject',
-            credential: 'openrelayproject'
-        }
+        { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+        { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' }
     ],
-    iceCandidatePoolSize: 10,      // Più candidati = connessione più veloce
-    bundlePolicy: 'max-bundle',    // Riduce il numero di connessioni
-    rtcpMuxPolicy: 'require',      // Multiplexing RTCP
-    sdpSemantics: 'unified-plan'   // Standard moderno
+    iceCandidatePoolSize: 10,
+    bundlePolicy: 'max-bundle',
+    rtcpMuxPolicy: 'require',
+    sdpSemantics: 'unified-plan'
 };
 
 // DOM Elements
@@ -71,7 +63,7 @@ function updateStatus(status, extra = {}) {
         case 'streaming':
             statusText.textContent = 'Trasmissione in corso';
             statusIcon.textContent = '📡';
-            statusSubtle.textContent = 'Streaming fluido a 720p - Usa i controlli';
+            statusSubtle.textContent = 'Streaming fluido a 720p';
             break;
         case 'ended':
             statusText.textContent = 'Trasmissione terminata';
@@ -83,154 +75,167 @@ function updateStatus(status, extra = {}) {
 
 // ===== FUNZIONI PER GLI EFFETTI =====
 function applyFreeze() {
-    if (!localStream) return;
+    if (!peerConnection) return;
+    
+    const sender = peerConnection.getSenders().find(s => s.track?.kind === 'video');
+    if (!sender) return;
     
     if (!isFrozen) {
-        const videoTrack = localStream.getVideoTracks()[0];
-        if (videoTrack && !canvas) {
-            canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
+        // Salva il track originale
+        originalTrack = sender.track;
+        
+        // Crea un canvas per catturare il frame corrente
+        const canvas = document.createElement('canvas');
+        canvas.width = 640;
+        canvas.height = 480;
+        const ctx = canvas.getContext('2d');
+        
+        // Crea un elemento video temporaneo
+        const tempVideo = document.createElement('video');
+        tempVideo.srcObject = new MediaStream([originalTrack]);
+        tempVideo.muted = true;
+        tempVideo.play();
+        
+        tempVideo.addEventListener('loadeddata', () => {
+            canvas.width = tempVideo.videoWidth || 640;
+            canvas.height = tempVideo.videoHeight || 480;
+            ctx.drawImage(tempVideo, 0, 0, canvas.width, canvas.height);
             
-            const tempVideo = document.createElement('video');
-            tempVideo.srcObject = localStream;
-            tempVideo.play();
+            const frozenStream = canvas.captureStream(30);
+            const frozenTrack = frozenStream.getVideoTracks()[0];
+            sender.replaceTrack(frozenTrack);
+            isFrozen = true;
+            freezeBtn.classList.add('active');
             
-            tempVideo.addEventListener('loadeddata', () => {
-                canvas.width = tempVideo.videoWidth;
-                canvas.height = tempVideo.videoHeight;
-                ctx.drawImage(tempVideo, 0, 0, canvas.width, canvas.height);
-                
-                const frozenStream = canvas.captureStream(1);
-                const newVideoTrack = frozenStream.getVideoTracks()[0];
-                
-                const sender = peerConnection?.getSenders().find(s => s.track?.kind === 'video');
-                if (sender) {
-                    sender.replaceTrack(newVideoTrack);
-                }
-                isFrozen = true;
-                freezeBtn.classList.add('btn-control-active');
-                
-                tempVideo.pause();
-                tempVideo.srcObject = null;
-            });
-        }
+            tempVideo.pause();
+            tempVideo.srcObject = null;
+        });
     } else {
-        const sender = peerConnection?.getSenders().find(s => s.track?.kind === 'video');
-        if (sender && localStream) {
-            const liveTrack = localStream.getVideoTracks()[0];
-            sender.replaceTrack(liveTrack);
+        // Scongela - ripristina il track live
+        if (originalTrack && originalTrack.readyState === 'live') {
+            sender.replaceTrack(originalTrack);
         }
         isFrozen = false;
-        freezeBtn.classList.remove('btn-control-active');
+        freezeBtn.classList.remove('active');
     }
 }
 
 function applyBlack() {
-    if (!localStream) return;
+    if (!peerConnection) return;
     
-    const blackCanvas = document.createElement('canvas');
-    blackCanvas.width = 640;
-    blackCanvas.height = 480;
-    const ctx = blackCanvas.getContext('2d');
-    ctx.fillStyle = 'black';
-    ctx.fillRect(0, 0, blackCanvas.width, blackCanvas.height);
+    const sender = peerConnection.getSenders().find(s => s.track?.kind === 'video');
+    if (!sender) return;
     
-    const blackStream = blackCanvas.captureStream(1);
-    const blackTrack = blackStream.getVideoTracks()[0];
-    
-    const sender = peerConnection?.getSenders().find(s => s.track?.kind === 'video');
-    if (sender) {
+    if (!isBlackActive) {
+        // Salva il track originale se non è già salvato
+        if (!isFrozen && !originalTrack) {
+            originalTrack = sender.track;
+        }
+        
+        // Crea stream nero
+        const canvas = document.createElement('canvas');
+        canvas.width = 640;
+        canvas.height = 480;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = 'black';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        const blackStream = canvas.captureStream(30);
+        const blackTrack = blackStream.getVideoTracks()[0];
         sender.replaceTrack(blackTrack);
+        
+        isBlackActive = true;
+        blackBtn.classList.add('active');
+        blurBtn.classList.remove('active');
     }
-    
-    blackBtn.classList.add('btn-control-active');
-    blurBtn.classList.remove('btn-control-active');
-    resetEffectBtn.classList.remove('btn-control-active');
 }
 
 function applyBlur() {
-    if (!localStream) return;
+    if (!peerConnection) return;
     
-    const videoElement = document.createElement('video');
-    videoElement.srcObject = localStream;
-    videoElement.style.filter = 'blur(10px)';
+    const sender = peerConnection.getSenders().find(s => s.track?.kind === 'video');
+    if (!sender) return;
     
-    const blurCanvas = document.createElement('canvas');
-    blurCanvas.width = 640;
-    blurCanvas.height = 480;
-    const ctx = blurCanvas.getContext('2d');
-    
-    videoElement.play();
-    videoElement.addEventListener('loadeddata', () => {
+    if (!isBlurActive) {
+        // Salva il track originale
+        if (!isFrozen && !originalTrack) {
+            originalTrack = sender.track;
+        }
+        
+        // Crea canvas per il blur
+        blurCanvas = document.createElement('canvas');
+        blurCanvas.width = 640;
+        blurCanvas.height = 480;
+        const ctx = blurCanvas.getContext('2d');
+        
+        // Crea video temporaneo per catturare lo stream
+        const tempVideo = document.createElement('video');
+        const sourceStream = new MediaStream([originalTrack || sender.track]);
+        tempVideo.srcObject = sourceStream;
+        tempVideo.muted = true;
+        tempVideo.play();
+        
         const drawBlur = () => {
-            ctx.filter = 'blur(10px)';
-            ctx.drawImage(videoElement, 0, 0, blurCanvas.width, blurCanvas.height);
-            requestAnimationFrame(drawBlur);
+            if (!isBlurActive) return;
+            if (tempVideo.videoWidth > 0) {
+                blurCanvas.width = tempVideo.videoWidth;
+                blurCanvas.height = tempVideo.videoHeight;
+                ctx.filter = 'blur(10px)';
+                ctx.drawImage(tempVideo, 0, 0, blurCanvas.width, blurCanvas.height);
+            }
+            blurAnimationId = requestAnimationFrame(drawBlur);
         };
-        drawBlur();
-    });
-    
-    const blurStream = blurCanvas.captureStream(30);
-    const blurTrack = blurStream.getVideoTracks()[0];
-    
-    const sender = peerConnection?.getSenders().find(s => s.track?.kind === 'video');
-    if (sender) {
+        
+        tempVideo.addEventListener('loadeddata', drawBlur);
+        
+        const blurStream = blurCanvas.captureStream(30);
+        const blurTrack = blurStream.getVideoTracks()[0];
         sender.replaceTrack(blurTrack);
+        
+        isBlurActive = true;
+        blurBtn.classList.add('active');
+        blackBtn.classList.remove('active');
     }
-    
-    blurBtn.classList.add('btn-control-active');
-    blackBtn.classList.remove('btn-control-active');
-    resetEffectBtn.classList.remove('btn-control-active');
 }
 
 function resetEffects() {
-    if (!localStream) return;
+    if (!peerConnection) return;
     
-    const sender = peerConnection?.getSenders().find(s => s.track?.kind === 'video');
-    if (sender && localStream) {
-        const liveTrack = localStream.getVideoTracks()[0];
-        sender.replaceTrack(liveTrack);
+    const sender = peerConnection.getSenders().find(s => s.track?.kind === 'video');
+    if (!sender) return;
+    
+    // Ferma animazione blur
+    if (blurAnimationId) {
+        cancelAnimationFrame(blurAnimationId);
+        blurAnimationId = null;
+    }
+    
+    // Ripristina track originale
+    if (originalTrack && originalTrack.readyState === 'live') {
+        sender.replaceTrack(originalTrack);
     }
     
     isFrozen = false;
-    freezeBtn.classList.remove('btn-control-active');
-    blackBtn.classList.remove('btn-control-active');
-    blurBtn.classList.remove('btn-control-active');
+    isBlackActive = false;
+    isBlurActive = false;
+    
+    freezeBtn.classList.remove('active');
+    blackBtn.classList.remove('active');
+    blurBtn.classList.remove('active');
 }
 
 // ===== WEBRTC OTTIMIZZATO =====
 async function initWebRTC(code) {
     peerConnection = new RTCPeerConnection(configuration);
     
-    // Imposta le preferenze di banda con Simulcast (3 livelli di qualità)
-    const transceiver = peerConnection.addTransceiver('video', {
-        direction: 'sendonly',
-        sendEncodings: [
-            {
-                rid: 'high',
-                maxBitrate: 2500000,    // 2.5 Mbps - qualità alta
-                scaleResolutionDownBy: 1.0,
-                active: true
-            },
-            {
-                rid: 'medium',
-                maxBitrate: 1200000,    // 1.2 Mbps - qualità media
-                scaleResolutionDownBy: 2.0,
-                active: true
-            },
-            {
-                rid: 'low',
-                maxBitrate: 500000,     // 0.5 Mbps - qualità bassa
-                scaleResolutionDownBy: 4.0,
-                active: true
-            }
-        ]
-    });
-    
-    // Aggiungi la traccia video
+    // Imposta le preferenze di banda
     if (localStream) {
         localStream.getTracks().forEach(track => {
             peerConnection.addTrack(track, localStream);
+            // Salva il track originale
+            if (track.kind === 'video') {
+                originalTrack = track;
+            }
         });
     }
     
@@ -242,9 +247,6 @@ async function initWebRTC(code) {
     
     peerConnection.oniceconnectionstatechange = () => {
         console.log('ICE connection state:', peerConnection.iceConnectionState);
-        if (peerConnection.iceConnectionState === 'connected') {
-            console.log('ICE connection established');
-        }
     };
     
     peerConnection.onconnectionstatechange = () => {
@@ -258,13 +260,7 @@ async function initWebRTC(code) {
         }
     };
     
-    const offerOptions = {
-        offerToReceiveAudio: false,
-        offerToReceiveVideo: false,
-        iceRestart: false
-    };
-    
-    const offer = await peerConnection.createOffer(offerOptions);
+    const offer = await peerConnection.createOffer();
     await peerConnection.setLocalDescription(offer);
     socket.emit('webrtc-offer', { code, offer });
 }
@@ -284,6 +280,12 @@ function handleICECandidate(data) {
 }
 
 function endTransmission() {
+    // Ferma animazione blur
+    if (blurAnimationId) {
+        cancelAnimationFrame(blurAnimationId);
+        blurAnimationId = null;
+    }
+    
     if (peerConnection) {
         peerConnection.close();
         peerConnection = null;
@@ -305,44 +307,46 @@ function endTransmission() {
     endBtn.classList.add('hidden');
     updateStatus('waiting');
     
+    // Reset variabili
     isFrozen = false;
-    freezeBtn.classList.remove('btn-control-active');
-    blackBtn.classList.remove('btn-control-active');
-    blurBtn.classList.remove('btn-control-active');
+    isBlackActive = false;
+    isBlurActive = false;
+    originalTrack = null;
+    freezeBtn.classList.remove('active');
+    blackBtn.classList.remove('active');
+    blurBtn.classList.remove('active');
 }
 
-// SCREEN SHARE CON OTTIMIZZAZIONI
+// SCREEN SHARE CON SCELTA SCHERMATA
 async function startScreenShare() {
     try {
         updateStatus('connecting');
         
-        // Configurazione ottimizzata per lo screen sharing
+        // Chiede all'utente cosa condividere
         localStream = await navigator.mediaDevices.getDisplayMedia({
             video: {
                 cursor: "always",
                 displaySurface: "monitor",
                 width: { ideal: 1280, max: 1920 },
                 height: { ideal: 720, max: 1080 },
-                frameRate: { ideal: 25, max: 30 }  // Limita a 25-30fps per stabilità
+                frameRate: { ideal: 25, max: 30 }
             },
             audio: false,
-            preferCurrentTab: true
+            preferCurrentTab: false  // Permette di scegliere tra finestre/tab/intero schermo
         });
         
-        // Ottimizza la traccia video con le migliori impostazioni disponibili
+        // Ottimizza la traccia video
         const videoTrack = localStream.getVideoTracks()[0];
         if (videoTrack) {
-            const capabilities = videoTrack.getCapabilities();
-            if (capabilities.width) {
-                await videoTrack.applyConstraints({
-                    width: { ideal: 1280, max: 1920 },
-                    height: { ideal: 720, max: 1080 },
-                    frameRate: { ideal: 25, max: 30 }
-                });
-            }
+            await videoTrack.applyConstraints({
+                width: { ideal: 1280, max: 1920 },
+                height: { ideal: 720, max: 1080 },
+                frameRate: { ideal: 25, max: 30 }
+            });
             console.log('Track settings:', videoTrack.getSettings());
         }
         
+        // Quando l'utente ferma la condivisione dal browser
         localStream.getVideoTracks()[0].onended = () => {
             console.log('Screen sharing stopped by user');
             endTransmission();
@@ -357,7 +361,7 @@ async function startScreenShare() {
     } catch (err) {
         console.error('Error sharing screen:', err);
         updateStatus('waiting');
-        alert('Impossibile condividere lo schermo. Assicurati di utilizzare un browser compatibile.');
+        alert('Impossibile condividere lo schermo. Assicurati di autorizzare la condivisione.');
     }
 }
 
