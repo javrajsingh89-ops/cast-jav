@@ -2,7 +2,6 @@ let socket;
 let peerConnection;
 let currentCode = null;
 let isConnected = false;
-let lastTimestamp = 0;
 let latencyInterval = null;
 
 const configuration = {
@@ -29,7 +28,7 @@ const tvStatusIcon = document.getElementById('tv-status-icon');
 const fullscreenBtn = document.getElementById('fullscreen-btn');
 const latencyBadge = document.getElementById('latency-badge');
 
-// Estrai codice dall'URL se presente
+// Estrai codice dall'URL
 function getCodeFromURL() {
     const path = window.location.pathname;
     const match = path.match(/\/tv\/(\d{4})/);
@@ -37,6 +36,19 @@ function getCodeFromURL() {
         return match[1];
     }
     return null;
+}
+
+// Aggiorna URL con il codice (senza ricaricare)
+function updateURLWithCode(code) {
+    if (!code) return;
+    const newUrl = `${window.location.origin}/tv/${code}`;
+    window.history.replaceState({ code: code }, '', newUrl);
+}
+
+// Rimuovi codice dall'URL (quando la sessione finisce)
+function removeCodeFromURL() {
+    const newUrl = `${window.location.origin}/tv`;
+    window.history.replaceState({}, '', newUrl);
 }
 
 function updateLatency(latencyMs) {
@@ -209,25 +221,36 @@ function handleDisconnect() {
     currentCode = null;
     updateTVStatus('waiting', 'In attesa codice');
     
-    // Rimuovi il codice dall'URL ma mantieni la pagina
-    const url = new URL(window.location);
-    if (url.pathname !== '/tv') {
-        window.history.pushState({}, '', '/tv');
-    }
+    // Rimuovi il codice dall'URL
+    removeCodeFromURL();
 }
 
 function connectToSession(code) {
+    if (!code || code.length !== 4) {
+        updateTVStatus('error', 'Codice non valido');
+        setTimeout(() => {
+            updateTVStatus('waiting', 'In attesa codice');
+        }, 2000);
+        return;
+    }
+    
     currentCode = code;
+    updateURLWithCode(code);  // Mantieni il codice nell'URL
     updateTVStatus('connecting', 'Connessione in corso...');
     
     if (!socket || !socket.connected) {
         setupSocketEvents();
+    } else {
+        socket.emit('tv-connect', code);
     }
-    
-    socket.emit('tv-connect', code);
 }
 
 function setupSocketEvents() {
+    if (socket) {
+        // Rimuovi vecchi listener per evitare duplicati
+        socket.removeAllListeners();
+    }
+    
     socket = io({
         transports: ['websocket', 'polling'],
         reconnection: true,
@@ -248,11 +271,13 @@ function setupSocketEvents() {
             updateTVStatus('connected', 'Connesso!');
             initWebRTCReciever(currentCode);
         } else {
-            updateTVStatus('error', 'Codice non valido');
+            updateTVStatus('error', 'Codice non valido o sessione scaduta');
             setTimeout(() => {
-                updateTVStatus('waiting', 'In attesa codice');
+                if (!isConnected) {
+                    updateTVStatus('waiting', 'In attesa codice');
+                    // Non rimuovere il codice dall'URL automaticamente, lascia che l'utente riprovi
+                }
             }, 2000);
-            handleDisconnect();
         }
     });
     
@@ -260,15 +285,23 @@ function setupSocketEvents() {
     socket.on('ice-candidate', handleICECandidate);
     
     socket.on('cast-ended', () => {
+        console.log('Cast ended by sender');
         handleDisconnect();
     });
     
     socket.on('peer-disconnected', () => {
-        handleDisconnect();
+        console.log('Sender disconnected');
+        updateTVStatus('error', 'Il mittente ha terminato la trasmissione');
+        setTimeout(() => {
+            handleDisconnect();
+        }, 2000);
     });
     
     socket.on('disconnect', () => {
-        handleDisconnect();
+        console.log('Socket disconnected');
+        if (isConnected) {
+            updateTVStatus('error', 'Connessione persa, riconnessione...');
+        }
     });
 }
 
@@ -304,12 +337,29 @@ codeInput.addEventListener('input', (e) => {
     }, 100);
 });
 
-// Controlla se c'è un codice nell'URL
+// Inizializza
+setupSocketEvents();
+updateTVStatus('waiting', 'In attesa codice');
+
+// Controlla se c'è un codice nell'URL all'avvio
 const urlCode = getCodeFromURL();
 if (urlCode) {
+    console.log('Codice trovato in URL:', urlCode);
     codeInput.value = urlCode;
     connectToSession(urlCode);
 }
 
-setupSocketEvents();
-updateTVStatus('waiting', 'In attesa codice');
+// Ascolta il back/forward del browser
+window.addEventListener('popstate', (event) => {
+    const newCode = getCodeFromURL();
+    if (newCode && newCode !== currentCode && !isConnected) {
+        codeInput.value = newCode;
+        connectToSession(newCode);
+    } else if (!newCode && isConnected) {
+        // Se l'utente torna indietro mentre è connesso, non disconnettere
+        // ma ripristina il codice nell'URL
+        if (currentCode) {
+            updateURLWithCode(currentCode);
+        }
+    }
+});
