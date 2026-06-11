@@ -486,3 +486,25 @@ body {
 .effect-black {
     filter: brightness(0);
 }
+
+/* Ottimizzazioni per playback fluido */
+.stream-video {
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+}
+
+.video-container {
+    will-change: transform;
+}
+
+/* Miglioramento performance WebRTC */
+.controls-container {
+    will-change: contents;
+}
+
+/* Riduci animazioni per performance (solo TV) */
+.tv-layout * {
+    animation: none !important;
+    transition: none !important;
+}
