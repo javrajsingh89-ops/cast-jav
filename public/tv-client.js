@@ -29,7 +29,7 @@ function toggleFullscreen() {
         } else if (container.msRequestFullscreen) {
             container.msRequestFullscreen();
         }
-        fullscreenBtn.innerHTML = '<span class="btn-icon">✖</span> Esci fullscreen';
+        fullscreenBtn.innerHTML = '<span class="btn-icon">⛶</span> Esci fullscreen';
     } else {
         if (document.exitFullscreen) {
             document.exitFullscreen();
@@ -44,7 +44,7 @@ function toggleFullscreen() {
 
 function updateFullscreenButton() {
     if (document.fullscreenElement) {
-        fullscreenBtn.innerHTML = '<span class="btn-icon">✖</span> Esci fullscreen';
+        fullscreenBtn.innerHTML = '<span class="btn-icon">⛶</span> Esci fullscreen';
     } else {
         fullscreenBtn.innerHTML = '<span class="btn-icon">⛶</span> Schermo intero';
     }
