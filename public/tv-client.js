@@ -2,25 +2,17 @@ let socket;
 let peerConnection;
 let currentCode = null;
 let isConnected = false;
+let lastTimestamp = 0;
+let latencyInterval = null;
 
-// CONFIGURAZIONE WEBRTC OTTIMIZZATA PER RICEZIONE
+// CONFIGURAZIONE WEBRTC
 const configuration = {
     iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
         { urls: 'stun:stun2.l.google.com:19302' },
-        { urls: 'stun:stun3.l.google.com:19302' },
-        { urls: 'stun:stun4.l.google.com:19302' },
-        {
-            urls: 'turn:openrelay.metered.ca:80',
-            username: 'openrelayproject',
-            credential: 'openrelayproject'
-        },
-        {
-            urls: 'turn:openrelay.metered.ca:443',
-            username: 'openrelayproject',
-            credential: 'openrelayproject'
-        }
+        { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+        { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' }
     ],
     iceCandidatePoolSize: 10,
     bundlePolicy: 'max-bundle',
@@ -28,6 +20,7 @@ const configuration = {
     sdpSemantics: 'unified-plan'
 };
 
+// DOM Elements
 const codeInput = document.getElementById('code-input');
 const connectBtn = document.getElementById('connect-btn');
 const codeInputContainer = document.getElementById('code-input-container');
@@ -36,6 +29,60 @@ const remoteVideo = document.getElementById('remote-video');
 const tvStatusText = document.getElementById('tv-status-text');
 const tvStatusIcon = document.getElementById('tv-status-icon');
 const fullscreenBtn = document.getElementById('fullscreen-btn');
+const latencyBadge = document.getElementById('latency-badge');
+
+// Calcola e mostra la latenza
+function updateLatency(latencyMs) {
+    if (!latencyBadge) return;
+    
+    let color = '#10b981'; // verde - buona
+    let text = 'Bassa';
+    
+    if (latencyMs > 300) {
+        color = '#f59e0b'; // giallo - media
+        text = 'Media';
+    }
+    if (latencyMs > 800) {
+        color = '#ef4444'; // rosso - alta
+        text = 'Alta';
+    }
+    
+    latencyBadge.style.backgroundColor = color;
+    latencyBadge.textContent = `${text} ${Math.round(latencyMs)}ms`;
+    latencyBadge.classList.add('visible');
+}
+
+// Misura la latenza usando RTCP
+function startLatencyMonitoring(peerConn) {
+    if (latencyInterval) clearInterval(latencyInterval);
+    
+    latencyInterval = setInterval(() => {
+        if (!peerConn) return;
+        
+        const stats = peerConn.getStats();
+        stats.then(reports => {
+            reports.forEach(report => {
+                if (report.type === 'inbound-rtp' && report.kind === 'video') {
+                    if (report.jitter !== undefined) {
+                        // Converti jitter in latenza approssimativa
+                        const estimatedLatency = report.jitter * 1000;
+                        updateLatency(estimatedLatency);
+                    }
+                }
+            });
+        }).catch(err => console.log('Stats error:', err));
+    }, 2000);
+}
+
+function stopLatencyMonitoring() {
+    if (latencyInterval) {
+        clearInterval(latencyInterval);
+        latencyInterval = null;
+    }
+    if (latencyBadge) {
+        latencyBadge.classList.remove('visible');
+    }
+}
 
 function toggleFullscreen() {
     if (!document.fullscreenElement) {
@@ -47,7 +94,7 @@ function toggleFullscreen() {
         } else if (container.msRequestFullscreen) {
             container.msRequestFullscreen();
         }
-        fullscreenBtn.innerHTML = '⛶ Esci fullscreen';
+        fullscreenBtn.innerHTML = '⛶ Esci';
     } else {
         if (document.exitFullscreen) {
             document.exitFullscreen();
@@ -56,21 +103,20 @@ function toggleFullscreen() {
         } else if (document.msExitFullscreen) {
             document.msExitFullscreen();
         }
-        fullscreenBtn.innerHTML = '⛶ Schermo intero';
+        fullscreenBtn.innerHTML = '⛶ Fullscreen';
     }
 }
 
 function updateFullscreenButton() {
     if (document.fullscreenElement) {
-        fullscreenBtn.innerHTML = '⛶ Esci fullscreen';
+        fullscreenBtn.innerHTML = '⛶ Esci';
     } else {
-        fullscreenBtn.innerHTML = '⛶ Schermo intero';
+        fullscreenBtn.innerHTML = '⛶ Fullscreen';
     }
 }
 
 document.addEventListener('fullscreenchange', updateFullscreenButton);
 document.addEventListener('webkitfullscreenchange', updateFullscreenButton);
-document.addEventListener('msfullscreenchange', updateFullscreenButton);
 
 function updateTVStatus(status, message) {
     tvStatusText.textContent = message || status;
@@ -93,26 +139,22 @@ function updateTVStatus(status, message) {
     }
 }
 
-// WEBRTC RICEVENTE OTTIMIZZATO
 async function initWebRTCReciever(code) {
     peerConnection = new RTCPeerConnection(configuration);
     
-    // Configura solo ricezione video
-    peerConnection.addTransceiver('video', { direction: 'recvonly' });
-    
     peerConnection.ontrack = (event) => {
-        console.log('Received remote track', event.track.kind);
+        console.log('Received remote track');
         if (event.streams && event.streams[0]) {
             remoteVideo.srcObject = event.streams[0];
-            
-            // Ottimizza la riproduzione
             remoteVideo.play().catch(e => console.log('Play error:', e));
-            remoteVideo.setAttribute('playsinline', '');
             
             videoContainer.classList.remove('hidden');
             codeInputContainer.classList.add('hidden');
             fullscreenBtn.classList.remove('hidden');
-            updateTVStatus('streaming', 'Streaming fluido in corso');
+            updateTVStatus('streaming', 'Streaming in corso');
+            
+            // Avvia monitoraggio latenza
+            startLatencyMonitoring(peerConnection);
         }
     };
     
@@ -122,14 +164,10 @@ async function initWebRTCReciever(code) {
         }
     };
     
-    peerConnection.oniceconnectionstatechange = () => {
-        console.log('ICE state:', peerConnection.iceConnectionState);
-    };
-    
     peerConnection.onconnectionstatechange = () => {
         console.log('TV Connection state:', peerConnection.connectionState);
         if (peerConnection.connectionState === 'connected') {
-            updateTVStatus('streaming', 'Streaming fluido in corso');
+            updateTVStatus('streaming', 'Streaming in corso');
         } else if (peerConnection.connectionState === 'failed') {
             handleDisconnect();
         }
@@ -139,16 +177,12 @@ async function initWebRTCReciever(code) {
 function handleOffer(data) {
     if (peerConnection && data.offer) {
         peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer))
-            .then(() => {
-                return peerConnection.createAnswer();
-            })
-            .then(answer => {
-                return peerConnection.setLocalDescription(answer);
-            })
+            .then(() => peerConnection.createAnswer())
+            .then(answer => peerConnection.setLocalDescription(answer))
             .then(() => {
                 socket.emit('webrtc-answer', { code: currentCode, answer: peerConnection.localDescription });
             })
-            .catch(err => console.error('Error handling offer:', err));
+            .catch(err => console.error('Error:', err));
     }
 }
 
@@ -160,6 +194,8 @@ function handleICECandidate(data) {
 }
 
 function handleDisconnect() {
+    stopLatencyMonitoring();
+    
     if (peerConnection) {
         peerConnection.close();
         peerConnection = null;
@@ -222,17 +258,14 @@ function setupSocketEvents() {
     socket.on('ice-candidate', handleICECandidate);
     
     socket.on('cast-ended', () => {
-        console.log('Cast ended');
         handleDisconnect();
     });
     
     socket.on('peer-disconnected', () => {
-        console.log('Smartphone disconnected');
         handleDisconnect();
     });
     
     socket.on('disconnect', () => {
-        console.log('Socket disconnected');
         handleDisconnect();
     });
 }
